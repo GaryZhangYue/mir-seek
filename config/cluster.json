@@ -1,0 +1,25 @@
+{
+      "__default__": {
+              "mem": "24g",
+              "time": "72:00:00",
+              "threads": "2",
+              "gres": "lscratch:500",
+              "partition": "norm"
+      },
+      "trim": {
+              "mem": "100g",
+              "time": "72:00:00",
+              "threads": "4",
+              "gres": "lscratch:500"
+      },
+      "mapper": {
+              "mem": "100g",
+              "time": "72:00:00",
+              "threads": "4"
+      },
+      "mirdeep2": {
+              "mem": "100g",
+              "time": "72:00:00",
+              "threads": "4"
+      }
+}

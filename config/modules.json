@@ -1,0 +1,9 @@
+{
+    "tools": {
+        "trimmomatic": "trimmomatic/0.38",
+        "java": "java/12.0.1",
+        "seqkit": "seqkit/2.1.0",
+        "bowtie": "bowtie/1.2.2",
+        "R": "R/4.2.2"
+    }
+}
