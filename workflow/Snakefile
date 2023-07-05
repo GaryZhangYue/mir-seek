@@ -1,5 +1,5 @@
 ###########################################################################
-# PacBio amplicon analysis
+# Micro-RNA Analysis
 # Yue (Gary) Zhang, Ph.D
 # 2023/05/01
 # Snakemake/7.19.1
@@ -32,6 +32,8 @@ rule target:
     input:
         # run step 1 trim
         expand("{path}/Trimmed/{sample}_trimmed.fastq.gz", path=path_analysis, sample=sample_list),
+        expand("{path}/Trimmed/{sample}_fastp_report.html", path=path_analysis, sample=sample_list),
+        expand("{path}/Trimmed/{sample}_fastp_report.json", path=path_analysis, sample=sample_list),
         expand("{path}/Trimmed/{sample}_trimmed_curated.fa", path=path_analysis, sample=sample_list),
         expand("{path}/mirdeep2/temporary1/{sample}_collapsed.fa", path=path_analysis, sample=sample_list),
         expand("{path}/mirdeep2/temporary1/{sample}_mapperARF.arf", path=path_analysis, sample=sample_list),
@@ -43,22 +45,32 @@ rule trim:
     input:
         path.join(path_raw_reads,"{sample}_R1_001.fastq.gz"),
     output:
-        path.join(path_analysis,"Trimmed/{sample}_trimmed.fastq.gz"),
+        trimmed_read=path.join(path_analysis,"Trimmed/{sample}_trimmed.fastq.gz"),
+        report_html=path.join(path_analysis,"Trimmed/{sample}_fastp_report.html"),
+        report_json=path.join(path_analysis,"Trimmed/{sample}_fastp_report.json"),
     envmodules:
-        config['tools']['trimmomatic'],
-        config['tools']['java']
+        config['tools']['fastp'],
+        config['tools']['multiqc'],
     log: 
         "logs/{sample}_trim.log",
     params:
         rname = "trim",
         tag = "{sample}",
         t = "4",
-        adapters = config['references']['adapters']
+        adapters = config['references']['adapters'],
+        path_trimmed = path.join(path_analysis,"Trimmed")
     shell: """
-        /usr/bin/java -jar /usr/local/apps/trimmomatic/Trimmomatic-0.38/trimmomatic-0.38.jar \
-        SE -threads {params.t} -phred33 {input} {output} \
-        ILLUMINACLIP:{params.adapters}:2:36:10 \
-        LEADING:10 TRAILING:10 MAXINFO:50:0.97 MINLEN:18 CROP:27 > {log} 2>&1
+        fastp --in1 {input} --out1 {output.trimmed_read} --thread {params.t} \
+        --json {output.report_json} --html {output.report_html} --adapter_fasta {params.adapters} \
+        -l 17 --max_len1 27       
+        
+        # trimmomatic trimming is outdated
+        #/usr/bin/java -jar /usr/local/apps/trimmomatic/Trimmomatic-0.38/trimmomatic-0.38.jar \
+        #SE -threads {params.t} -phred33 {input} {output} \
+        #ILLUMINACLIP:{params.adapters}:2:36:10 \
+        #LEADING:10 TRAILING:10 MAXINFO:50:0.97 MINLEN:18 CROP:27 > {log} 2>&1
+        
+        multiqc --interactive {params.path_trimmed}
     """
 # 2. convert fq to fa AND remove special characters
 rule fq2fa:
@@ -94,9 +106,9 @@ rule mapper:
         rname = "mapper",
         tag = "{sample}",
         t = "4",
-        hg38_index = config['references']['hg38_index']
+        host_index = config['references']['host_index']
     shell: """
-        mapper.pl {input} -c -j -l 18 -m -q -p {params.hg38_index} \
+        mapper.pl {input} -c -j -l 18 -m -q -p {params.host_index} \
         -s {output.collapsed} -t {output.arf} \
         -v -o {params.t} 2>{log.log} 1>{log.error}
     """
@@ -116,15 +128,16 @@ rule miRDeep2:
     params:
         rname = "mirdeep2",
         tag = "{sample}",
-        hg38_fasta = config['references']['hg38_fasta'],
+        host_fasta = config['references']['host_fasta'],
         mature = config['references']['mature'],
         hairpin = config['references']['hairpin'],
+        organism = config['references']['organism'],
         mir_dir = path.join(path_analysis,"mirdeep2/temporary2/{sample}")
     shell: """
         mkdir -p {params.mir_dir}
         cd {params.mir_dir}
-        miRDeep2.pl {input.collapsed} {params.hg38_fasta} {input.arf} \
-        {params.mature} none {params.hairpin} -t Human -P -v 2>{log.log} 1>{log.error}
+        miRDeep2.pl {input.collapsed} {params.host_fasta} {input.arf} \
+        {params.mature} none {params.hairpin} -t {params.organism} -P -v 2>{log.log} 1>{log.error}
         cp {params.mir_dir}/expression_analyses/expression_analyses_*/miRNA_expressed.csv {output}
     """
 # 5. parse mideep2 output

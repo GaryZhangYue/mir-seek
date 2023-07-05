@@ -15,6 +15,7 @@ _description = 'A pipeline to quantify miRNA copies from single-end illumina raw
 parser = argparse.ArgumentParser(description="Specify rawdata and output directories")
 parser.add_argument("input_dir", help="Path to input directory")
 parser.add_argument("output_dir", help="Path to output directory")
+parser.add_argument("organism", help="human or mouse")
 parser.add_argument("-d", "--dry-run", action="store_true", help="Perform a dry run")
 parser.add_argument("-u", "--unlock", action="store_true", help="Unlock the working directory")
 args = parser.parse_args()
@@ -35,16 +36,34 @@ for dir_name in ["config", "workflow", "database"]:
 config = {
         "path_raw_reads": args.input_dir, 
         "path_analysis": args.output_dir,
-        "path_root": work_dir,
-        "references":
-             {
-             "adapters": os.path.join(work_dir,"database/TruSeq_and_nextera_adapters_20210423.fa"),
-             "hg38_index": os.path.join(work_dir,"database/hg38_genome_processed_bowtie_index"),
-             "hg38_fasta": os.path.join(work_dir, "database/Homo_sapiens_assembly38_whitespace_removed_asterisk_tab_replaced_probLet_removed.fasta"), 
-             "mature": os.path.join(work_dir, "database/mature.fa"),
-             "hairpin": os.path.join(work_dir,"database/hairpin_probLet_removed.fa")
+        "path_root": work_dir
+	}
+config_ref_human = {"references":
+             	{
+		"organism": "Human",
+             	"adapters": os.path.join(work_dir,"database/TruSeq_and_nextera_adapters_20210423.fa"),
+             	"host_index": os.path.join(work_dir,"database/hg38_genome_processed_bowtie_index"),
+             	"host_fasta": os.path.join(work_dir, "database/Homo_sapiens_assembly38_whitespace_removed_asterisk_tab_replaced_probLet_removed.fasta"), 
+             	"mature": os.path.join(work_dir, "database/mature.fa"),
+             	"hairpin": os.path.join(work_dir,"database/hairpin_probLet_removed.fa")
              }
-         }
+         	}
+config_ref_mouse = {"references":
+		{
+		"organism": "Mouse",                
+		"adapters": os.path.join(work_dir,"database/TruSeq_and_nextera_adapters_20210423.fa"),
+                "host_index": os.path.join(work_dir,"database/mouse/mm10"),
+                "host_fasta": os.path.join(work_dir, "database/mouse/mm10_basic.fa"),
+                "mature": os.path.join(work_dir, "database/mouse/mmu_mature.fa"),
+                "hairpin": os.path.join(work_dir,"database/mouse/mmu_hairpin.fa")
+	}
+		}
+if args.organism == "human":
+	config.update(config_ref_human)
+elif args.organism == "mouse" :
+	config.update(config_ref_mouse)
+else: print("organism not supported (only mouse and human are supported")
+
 # Concatenate all .json files in config directory into config.json
 for file in os.listdir(os.path.join(work_dir, "config")):
     if file in ['cluster.json', 'modules.json']:
